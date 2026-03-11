@@ -1,25 +1,25 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { DataSourceDpt } from "./data";
+import { data } from "wailsjs/go/models";
 
-export const columns: ColumnDef<DataSourceDpt>[] = [
+export const columns: ColumnDef<data.LoadedDpt>[] = [
   {
     accessorKey: "filename",
     header: "Fichier",
   },
   {
-    accessorKey: "department",
+    accessorKey: "dpt",
     header: "Département",
   },
   {
-    accessorKey: "records",
+    accessorKey: "lines",
     header: "Nb lignes",
   },
   {
-    accessorKey: "minDate",
+    accessorKey: "startDate",
     header: "Première date",
   },
   {
-    accessorKey: "maxDate",
+    accessorKey: "endDate",
     header: "Dernière date",
   },
 ];

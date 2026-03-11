@@ -14,20 +14,60 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { Info } from "lucide-react";
-import { useState } from "react";
-import { BrowserOpenURL } from "../wailsjs/runtime/runtime";
+import { useEffect, useState } from "react";
+import { BrowserOpenURL, LogError } from "../wailsjs/runtime/runtime";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { columns } from "./settings/departments/columns";
-import { Department, departments, sources } from "./settings/departments/data";
+import {
+  Department,
+  departments,
+  getDptNotLoaded,
+} from "./settings/departments/data";
 import { DataTable } from "./settings/departments/data-table";
+import {
+  DownloadDptWeatherData,
+  GetLoadedSource,
+} from "../wailsjs/go/main/App";
+import { toast } from "sonner";
+import { data } from "wailsjs/go/models";
 
 export default function SettingsView() {
   const [selectedDpt, setSelectedDpt] = useState<Department | undefined>();
+  const [loadableDpt, setLoadableDpt] = useState<Department[]>(departments);
+  const [loadedSource, setLoadedSource] = useState<data.LoadedDpt[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const loadedDpt = await GetLoadedSource();
+      setLoadedSource(loadedDpt);
+      setLoadableDpt(getDptNotLoaded(loadedDpt.map((ld) => ld.dpt)));
+    })();
+  }, []);
 
   const handleImportAll = () => {};
+
+  const handleDownloadDpt = async () => {
+    if (selectedDpt) {
+      try {
+        await DownloadDptWeatherData(selectedDpt.id);
+        setLoadableDpt((ld) => ld.filter((l) => l.id !== selectedDpt.id));
+        setSelectedDpt(undefined);
+        const loadedDpt = await GetLoadedSource();
+        setLoadedSource(loadedDpt);
+      } catch (err) {
+        toast.error("Une erreur est survenue lors du téléchargement");
+        LogError(`Error while downloading dpt ${selectedDpt.id}`);
+        LogError(JSON.stringify(err));
+      }
+    } else {
+      toast.error("Sélectionner un département", {
+        position: "bottom-center",
+      });
+    }
+  };
 
   const handleDptChange = (value: string | null) => {
     const id = value?.split(" - ")[0];
@@ -97,7 +137,7 @@ export default function SettingsView() {
               <TabsContent value="source-existings">
                 <div className="p-2 bg-secondary/20 shadow-md rounded-md">
                   <div className="h-75 overflow-auto">
-                    <DataTable columns={columns} data={sources} />
+                    <DataTable columns={columns} data={loadedSource} />
                   </div>
                 </div>
               </TabsContent>
@@ -146,7 +186,10 @@ export default function SettingsView() {
                         </ComboboxContent>
                       </Combobox>
                     </div>
-                    <Button className="shrink-0 self-end">
+                    <Button
+                      className="shrink-0 self-end"
+                      onClick={handleDownloadDpt}
+                    >
                       Importer département
                     </Button>
                   </div>

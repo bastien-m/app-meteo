@@ -1,13 +1,17 @@
 package main
 
 import (
+	"app-meteo/data"
 	"context"
+	"database/sql"
 	"fmt"
 )
 
 // App struct
 type App struct {
 	ctx context.Context
+	cfg *data.UserConfig
+	db  *sql.DB
 }
 
 // NewApp creates a new App application struct
@@ -18,10 +22,40 @@ func NewApp() *App {
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
+	db, err := data.InitDB()
+	if err != nil {
+		panic(err)
+	}
+	cfg, err := data.LoadUserConfig()
+
+	if err != nil {
+		panic(err)
+	}
+
 	a.ctx = ctx
+	a.db = db
+	a.cfg = cfg
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time", name)
+func (a *App) DownloadDptWeatherData(dpt string) error {
+	loadedDpt, err := data.LoadDepartment(a.ctx, a.db, dpt)
+	if err != nil {
+		return err
+	}
+	a.cfg.AddLoadedDpt(loadedDpt)
+	return nil
+}
+
+func (a *App) GetLoadedSource() ([]data.LoadedDpt, error) {
+	if a.cfg == nil {
+		return nil, fmt.Errorf("Config not loaded")
+	}
+	return a.cfg.LoadedDpts, nil
+}
+
+func (a *App) GetUsername() string {
+	if a.cfg == nil {
+		return ""
+	}
+	return a.cfg.Profile.Username
 }

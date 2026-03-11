@@ -1,11 +1,3 @@
-export type DataSourceDpt = {
-  filename: string;
-  records: number;
-  department: string;
-  minDate: string;
-  maxDate: string;
-};
-
 export type Department = {
   id: string;
   name: string;
@@ -110,68 +102,6 @@ export const departments: Department[] = [
   { id: "95", name: "Val-d'Oise" },
 ];
 
-export const sources: DataSourceDpt[] = [
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date().toLocaleString(),
-  },
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date().toLocaleString(),
-  },
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date().toLocaleString(),
-  },
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date().toLocaleString(),
-  },
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date().toLocaleString(),
-  },
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date(Date.now()).toLocaleString(),
-  },
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date().toLocaleString(),
-  },
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date().toLocaleString(),
-  },
-  {
-    filename: "76-1950-2025.parquet",
-    records: 100,
-    department: "76",
-    minDate: new Date().toLocaleString(),
-    maxDate: new Date().toLocaleString(),
-  },
-];
+export const getDptNotLoaded = (loadedDpt: string[]): Department[] => {
+  return departments.filter((d) => !loadedDpt.find((ld) => ld === d.id));
+};

@@ -6,6 +6,7 @@ import Layout from "./Layout";
 import AppView from "./App";
 import MapView from "./Map";
 import SettingsView from "./Settings";
+import { Toaster } from "./components/ui/sonner";
 
 const container = document.getElementById("root");
 
@@ -20,6 +21,7 @@ root.render(
           <Route path="/map" element={<MapView />} />
           <Route path="/settings" element={<SettingsView />} />
         </Routes>
+        <Toaster />
       </Layout>
     </HashRouter>
   </React.StrictMode>,
