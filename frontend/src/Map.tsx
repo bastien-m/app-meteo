@@ -1,7 +1,11 @@
-import { LatLngExpression } from "leaflet";
-import { useState } from "react";
+import { LatLngExpression, Marker } from "leaflet";
+import { useEffect, useRef, useState } from "react";
+import { useMap } from "react-leaflet";
 import {
   Map,
+  MapLayerGroup,
+  MapLayers,
+  MapLayersControl,
   MapMarker,
   MapPopup,
   MapTileLayer,
@@ -15,53 +19,123 @@ import {
   CommandItem,
   CommandList,
 } from "./components/ui/command";
+import { ArrowDown, ArrowUp, MapPin } from "lucide-react";
+import { GetStations } from "wailsjs/go/main/App";
+import { data } from "wailsjs/go/models";
+import { LogPrint } from "wailsjs/runtime/runtime";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemSeparator,
+  ItemTitle,
+} from "./components/ui/item";
 
-type Station = { id: string; name: string; lat: number; lon: number };
-
-const STATIONS: Station[] = [
-  { id: "1", name: "Rennes", lat: 48.117, lon: -1.678 },
-  { id: "2", name: "Liffré", lat: 48.205, lon: -1.504 },
-  { id: "3", name: "Paris-Montsouris", lat: 48.822, lon: 2.337 },
-  { id: "4", name: "Lyon-Bron", lat: 45.727, lon: 5.081 },
-  { id: "5", name: "Bordeaux-Mérignac", lat: 44.829, lon: -0.691 },
-  { id: "6", name: "Marseille-Marignane", lat: 43.437, lon: 5.215 },
-  { id: "7", name: "Brest-Guipavas", lat: 48.447, lon: -4.419 },
-  { id: "8", name: "Strasbourg-Entzheim", lat: 48.538, lon: 7.628 },
-];
-
-const liffre_lat = 48.205347;
-const liffre_long = -1.503642;
-
-const position = [liffre_lat, liffre_long] satisfies LatLngExpression;
+const FRANCE_CENTER = [46.2276, 2.2137] satisfies LatLngExpression;
 
 function MapView() {
-  const [selected, setSelected] = useState<Station | null>(null);
-  const center = selected
-    ? ([selected.lat, selected.lon] satisfies LatLngExpression)
-    : position;
+  const [selected, setSelected] = useState<data.StationInfo | null>(null);
+
+  const [stations, setStations] = useState<data.StationInfo[]>([]);
+  const markerRefs = useRef<Record<string, Marker>>({});
+
+  useEffect(() => {
+    (async () => {
+      const stationList = await GetStations();
+      LogPrint(`loaded station with ${stationList.length} stations`);
+      setStations(stationList);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (selected) {
+      markerRefs.current[selected.NumPost]?.openPopup();
+    }
+  }, [selected]);
 
   return (
     <div className="flex flex-col h-full relative">
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-51 w-72">
-        <SearchStationComponent onSelect={setSelected} />
+        <SearchStationComponent stations={stations} onSelect={setSelected} />
       </div>
-      <Map center={center} className="flex-1 relative">
-        <MapTileLayer />
-        <MapZoomControl position="top-1 right-1" />
-        {selected && (
-          <MapMarker position={[selected.lat, selected.lon]}>
-            <MapPopup>{selected.name}</MapPopup>
-          </MapMarker>
-        )}
+      <Map center={FRANCE_CENTER} zoom={6} className="flex-1 relative">
+        <MapLayers defaultLayerGroups={["Station"]}>
+          <MapLayersControl />
+          <MapTileLayer />
+          <MapLayerGroup key="station" name="Station">
+            {stations.map((station) => (
+              <MapMarker
+                key={station.NumPost}
+                ref={(marker) => {
+                  if (marker) markerRefs.current[station.NumPost] = marker;
+                  else delete markerRefs.current[station.NumPost];
+                }}
+                position={[station.Lat, station.Lon] satisfies LatLngExpression}
+                icon={<MapPin />}
+                eventHandlers={{ click: () => setSelected(station) }}
+              >
+                <MapPopup maxWidth={400}>
+                  <StationTooltip station={station} />
+                </MapPopup>
+              </MapMarker>
+            ))}
+          </MapLayerGroup>
+          <MapZoomControl position="top-10 right-1" />
+        </MapLayers>
+        <MapFlyTo selected={selected} />
       </Map>
     </div>
   );
 }
 
+function MapFlyTo({ selected }: { selected: data.StationInfo | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (selected) {
+      map.setZoom(10);
+      map.flyTo([selected.Lat, selected.Lon]);
+    }
+  }, [selected]);
+  return null;
+}
+
+function StationTooltip({ station }: { station: data.StationInfo }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-sm font-semibold px-4 pt-2">{station.CommonName}</p>
+      <ItemGroup>
+        <Item variant="outline" size="sm">
+          <ItemMedia variant="icon">
+            <ArrowDown />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle>Pluie minimum (mm/an)</ItemTitle>
+            <ItemDescription>100</ItemDescription>
+          </ItemContent>
+        </Item>
+        <ItemSeparator />
+        <Item variant="outline" size="sm">
+          <ItemMedia variant="icon">
+            <ArrowUp />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle>Pluie maximum (mm/an)</ItemTitle>
+            <ItemDescription>1000</ItemDescription>
+          </ItemContent>
+        </Item>
+      </ItemGroup>
+    </div>
+  );
+}
+
 function SearchStationComponent({
+  stations,
   onSelect,
 }: {
-  onSelect: (s: Station) => void;
+  stations: data.StationInfo[];
+  onSelect: (s: data.StationInfo) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -76,16 +150,16 @@ function SearchStationComponent({
         <CommandList>
           <CommandEmpty>No station found.</CommandEmpty>
           <CommandGroup heading="Stations">
-            {STATIONS.map((station) => (
+            {stations.map((station) => (
               <CommandItem
-                key={station.id}
-                value={station.name}
+                key={station.NumPost}
+                value={station.CommonName}
                 onSelect={() => {
                   onSelect(station);
                   setOpen(false);
                 }}
               >
-                {station.name}
+                {station.CommonName}
               </CommandItem>
             ))}
           </CommandGroup>

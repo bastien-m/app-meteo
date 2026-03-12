@@ -10,6 +10,10 @@ export function GetLoadedSource() {
   return window['go']['main']['App']['GetLoadedSource']();
 }
 
+export function GetStations() {
+  return window['go']['main']['App']['GetStations']();
+}
+
 export function GetUsername() {
   return window['go']['main']['App']['GetUsername']();
 }

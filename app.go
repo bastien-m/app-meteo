@@ -59,3 +59,7 @@ func (a *App) GetUsername() string {
 	}
 	return a.cfg.Profile.Username
 }
+
+func (a *App) GetStations() ([]data.StationInfo, error) {
+	return data.GetStations(a.db)
+}
