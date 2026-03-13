@@ -7,6 +7,7 @@ import AppView from "./App";
 import MapView from "./Map";
 import SettingsView from "./Settings";
 import { Toaster } from "./components/ui/sonner";
+import AppContext from "./AppContext";
 
 const container = document.getElementById("root");
 

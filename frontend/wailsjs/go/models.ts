@@ -20,6 +20,22 @@ export namespace data {
 	        this.filename = source["filename"];
 	    }
 	}
+	export class RainByStation {
+	    NumPost: string;
+	    Year: string;
+	    Rain: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RainByStation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.NumPost = source["NumPost"];
+	        this.Year = source["Year"];
+	        this.Rain = source["Rain"];
+	    }
+	}
 	export class StationInfo {
 	    NumPost: string;
 	    CommonName: string;

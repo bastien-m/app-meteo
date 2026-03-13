@@ -63,3 +63,7 @@ func (a *App) GetUsername() string {
 func (a *App) GetStations() ([]data.StationInfo, error) {
 	return data.GetStations(a.db)
 }
+
+func (a *App) GetStationRain(station string) ([]data.RainByStation, error) {
+	return data.GetRainByStation(a.db, station)
+}

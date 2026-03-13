@@ -6,6 +6,8 @@ export function DownloadDptWeatherData(arg1:string):Promise<void>;
 
 export function GetLoadedSource():Promise<Array<data.LoadedDpt>>;
 
+export function GetStationRain(arg1:string):Promise<Array<data.RainByStation>>;
+
 export function GetStations():Promise<Array<data.StationInfo>>;
 
 export function GetUsername():Promise<string>;

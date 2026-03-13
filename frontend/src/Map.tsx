@@ -19,8 +19,15 @@ import {
   CommandItem,
   CommandList,
 } from "./components/ui/command";
-import { ArrowDown, ArrowUp, MapPin } from "lucide-react";
-import { GetStations } from "wailsjs/go/main/App";
+import {
+  ArrowDown,
+  ArrowUp,
+  MapPin,
+  PinIcon,
+  PinOff,
+  SquareActivity,
+} from "lucide-react";
+import { GetStationRain, GetStations } from "wailsjs/go/main/App";
 import { data } from "wailsjs/go/models";
 import { LogPrint } from "wailsjs/runtime/runtime";
 import {
@@ -32,6 +39,9 @@ import {
   ItemSeparator,
   ItemTitle,
 } from "./components/ui/item";
+import { ButtonGroup } from "./components/ui/button-group";
+import { Button } from "./components/ui/button";
+import { useAppContext } from "./AppContext";
 
 const FRANCE_CENTER = [46.2276, 2.2137] satisfies LatLngExpression;
 
@@ -76,7 +86,7 @@ function MapView() {
                 icon={<MapPin />}
                 eventHandlers={{ click: () => setSelected(station) }}
               >
-                <MapPopup maxWidth={400}>
+                <MapPopup className="w-80">
                   <StationTooltip station={station} />
                 </MapPopup>
               </MapMarker>
@@ -101,7 +111,64 @@ function MapFlyTo({ selected }: { selected: data.StationInfo | null }) {
   return null;
 }
 
+type YearRain = {
+  year: string;
+  rain: number;
+};
+
 function StationTooltip({ station }: { station: data.StationInfo }) {
+  const { context, addSelectedStation, removeSelectedStation } =
+    useAppContext();
+  const [maxRain, setMaxRain] = useState<YearRain | undefined>(undefined);
+  const [minRain, setMinRain] = useState<YearRain | undefined>(undefined);
+
+  useEffect(() => {
+    (async () => {
+      const rainByYear = await GetStationRain(station.NumPost);
+      const minRain = rainByYear.reduce(
+        (min, curr) => {
+          if (min === undefined) {
+            return {
+              year: curr.Year,
+              rain: curr.Rain,
+            };
+          } else {
+            if (min.rain > curr.Rain) {
+              return {
+                year: curr.Year,
+                rain: curr.Rain,
+              };
+            }
+          }
+          return min;
+        },
+        undefined as YearRain | undefined,
+      );
+
+      const maxRain = rainByYear.reduce(
+        (max, curr) => {
+          if (max === undefined) {
+            return {
+              year: curr.Year,
+              rain: curr.Rain,
+            };
+          } else {
+            if (max.rain < curr.Rain) {
+              return {
+                year: curr.Year,
+                rain: curr.Rain,
+              };
+            }
+          }
+          return max;
+        },
+        undefined as YearRain | undefined,
+      );
+
+      setMinRain(minRain);
+      setMaxRain(maxRain);
+    })();
+  }, []);
   return (
     <div className="flex flex-col gap-1">
       <p className="text-sm font-semibold px-4 pt-2">{station.CommonName}</p>
@@ -112,7 +179,11 @@ function StationTooltip({ station }: { station: data.StationInfo }) {
           </ItemMedia>
           <ItemContent>
             <ItemTitle>Pluie minimum (mm/an)</ItemTitle>
-            <ItemDescription>100</ItemDescription>
+            <ItemDescription>
+              {minRain
+                ? `${Math.round(minRain.rain)} mm en ${minRain.year}`
+                : "NA"}
+            </ItemDescription>
           </ItemContent>
         </Item>
         <ItemSeparator />
@@ -122,10 +193,37 @@ function StationTooltip({ station }: { station: data.StationInfo }) {
           </ItemMedia>
           <ItemContent>
             <ItemTitle>Pluie maximum (mm/an)</ItemTitle>
-            <ItemDescription>1000</ItemDescription>
+            <ItemDescription>
+              {maxRain
+                ? `${Math.round(maxRain.rain)} mm en ${maxRain.year}`
+                : "NA"}
+            </ItemDescription>
           </ItemContent>
         </Item>
       </ItemGroup>
+      <ButtonGroup>
+        {context.selectedStations.find((s) => s === station.NumPost) ? (
+          <Button
+            variant="outline"
+            onClick={() => removeSelectedStation(station.NumPost)}
+          >
+            <PinOff />
+            Retirer des graphes
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            onClick={() => addSelectedStation(station.NumPost)}
+          >
+            <PinIcon />
+            Ajouter aux graphes
+          </Button>
+        )}
+        <Button variant="outline">
+          <SquareActivity />
+          Afficher
+        </Button>
+      </ButtonGroup>
     </div>
   );
 }

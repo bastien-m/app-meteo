@@ -10,6 +10,10 @@ export function GetLoadedSource() {
   return window['go']['main']['App']['GetLoadedSource']();
 }
 
+export function GetStationRain(arg1) {
+  return window['go']['main']['App']['GetStationRain'](arg1);
+}
+
 export function GetStations() {
   return window['go']['main']['App']['GetStations']();
 }
