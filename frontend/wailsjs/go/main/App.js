@@ -14,6 +14,10 @@ export function GetStationRain(arg1) {
   return window['go']['main']['App']['GetStationRain'](arg1);
 }
 
+export function GetStationRainData(arg1) {
+  return window['go']['main']['App']['GetStationRainData'](arg1);
+}
+
 export function GetStations() {
   return window['go']['main']['App']['GetStations']();
 }

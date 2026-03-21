@@ -1,42 +1,49 @@
 import { produce } from "immer";
-import { createContext, useState } from "react";
+import { createContext, ReactNode, useContext, useState } from "react";
+import { data } from "wailsjs/go/models";
 
 type AppContext = {
-  selectedStations: string[];
+  selectedStations: data.StationInfo[];
+  addSelectedStation: (station: data.StationInfo) => void;
+  removeSelectedStation: (numPost: string) => void;
 };
 
-const AppContext = createContext<AppContext>({
-  selectedStations: [],
-});
+const AppContext = createContext<AppContext | null>(null);
 
-export function useAppContext() {
-  const [ctx, setCtx] = useState<AppContext>({
-    selectedStations: [],
-  });
+export function AppContextProvider({ children }: { children: ReactNode }) {
+  const [selectedStations, setSelectedStations] = useState<data.StationInfo[]>(
+    [],
+  );
 
-  function addSelectedStation(numPost: string) {
-    setCtx(
+  function addSelectedStation(station: data.StationInfo) {
+    setSelectedStations(
       produce((draft) => {
-        draft.selectedStations.push(numPost);
+        draft.push(station);
       }),
     );
   }
 
   function removeSelectedStation(numPost: string) {
-    setCtx(
-      produce((draft) => {
-        draft.selectedStations = draft.selectedStations.filter(
-          (s) => s !== numPost,
-        );
-      }),
+    setSelectedStations(
+      produce((draft) => draft.filter((s) => s.NumPost !== numPost)),
     );
   }
 
-  return {
-    context: ctx,
-    addSelectedStation,
-    removeSelectedStation,
-  };
+  return (
+    <AppContext
+      value={{ selectedStations, addSelectedStation, removeSelectedStation }}
+    >
+      {children}
+    </AppContext>
+  );
 }
 
 export default AppContext;
+
+export function useAppContext() {
+  const ctx = useContext(AppContext);
+  if (!ctx) {
+    throw new Error("useAppContext must be used inside AppContextProvider");
+  }
+  return ctx;
+}

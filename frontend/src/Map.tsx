@@ -42,6 +42,7 @@ import {
 import { ButtonGroup } from "./components/ui/button-group";
 import { Button } from "./components/ui/button";
 import { useAppContext } from "./AppContext";
+import { SearchStationComponent } from "./components/features/SearchStation";
 
 const FRANCE_CENTER = [46.2276, 2.2137] satisfies LatLngExpression;
 
@@ -117,7 +118,7 @@ type YearRain = {
 };
 
 function StationTooltip({ station }: { station: data.StationInfo }) {
-  const { context, addSelectedStation, removeSelectedStation } =
+  const { selectedStations, addSelectedStation, removeSelectedStation } =
     useAppContext();
   const [maxRain, setMaxRain] = useState<YearRain | undefined>(undefined);
   const [minRain, setMinRain] = useState<YearRain | undefined>(undefined);
@@ -202,7 +203,7 @@ function StationTooltip({ station }: { station: data.StationInfo }) {
         </Item>
       </ItemGroup>
       <ButtonGroup>
-        {context.selectedStations.find((s) => s === station.NumPost) ? (
+        {selectedStations.find((s) => s.NumPost === station.NumPost) ? (
           <Button
             variant="outline"
             onClick={() => removeSelectedStation(station.NumPost)}
@@ -211,10 +212,7 @@ function StationTooltip({ station }: { station: data.StationInfo }) {
             Retirer des graphes
           </Button>
         ) : (
-          <Button
-            variant="outline"
-            onClick={() => addSelectedStation(station.NumPost)}
-          >
+          <Button variant="outline" onClick={() => addSelectedStation(station)}>
             <PinIcon />
             Ajouter aux graphes
           </Button>
@@ -225,45 +223,6 @@ function StationTooltip({ station }: { station: data.StationInfo }) {
         </Button>
       </ButtonGroup>
     </div>
-  );
-}
-
-function SearchStationComponent({
-  stations,
-  onSelect,
-}: {
-  stations: data.StationInfo[];
-  onSelect: (s: data.StationInfo) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Command className="rounded-lg border shadow-md">
-      <CommandInput
-        placeholder="Search station..."
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-      />
-      {open && (
-        <CommandList>
-          <CommandEmpty>No station found.</CommandEmpty>
-          <CommandGroup heading="Stations">
-            {stations.map((station) => (
-              <CommandItem
-                key={station.NumPost}
-                value={station.CommonName}
-                onSelect={() => {
-                  onSelect(station);
-                  setOpen(false);
-                }}
-              >
-                {station.CommonName}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </CommandList>
-      )}
-    </Command>
   );
 }
 

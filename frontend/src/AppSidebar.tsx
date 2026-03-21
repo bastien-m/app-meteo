@@ -1,4 +1,4 @@
-import { Home, Map, Settings } from "lucide-react";
+import { ChartArea, Home, Map, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import weatherIcon from "./assets/images/weather-icon.png";
 import {
@@ -102,10 +102,10 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Configuration">
-                <NavLink to="/settings">
-                  <Settings />
-                  <span>Configuration</span>
+              <SidebarMenuButton asChild tooltip="Graphes">
+                <NavLink to="/graphs">
+                  <ChartArea />
+                  <span>Graphiques</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -143,6 +143,16 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Configuration">
+              <NavLink to="/settings">
+                <Settings />
+                <span>Configuration</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         {/* <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg">

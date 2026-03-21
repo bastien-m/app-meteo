@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "profile",
+    "loadedDpts"
+  ],
+  "properties": {
+    "profile": {
+      "type": "object",
+      "required": ["username"],
+      "properties": {
+        "username": { "type": "string" }
+      }
+    },
+    "loadedDpts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["startDate", "endDate", "lines", "dpt", "filename"],
+        "properties": {
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" },
+          "lines": { "type": "integer" },
+          "dpt": { "type": "string" },
+          "filename": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
