@@ -1,4 +1,12 @@
-import { Bar, BarChart, Brush, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  Brush,
+  CartesianGrid,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -26,6 +34,14 @@ type RainByPeriod = {
 
 type ViewMode = "day" | "month" | "year";
 
+const CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+
 export default function GraphView() {
   const {
     selectedStations: selectedStationsPostNum,
@@ -42,6 +58,17 @@ export default function GraphView() {
   );
 
   const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [grouped, setGrouped] = useState(false);
+  const [deltaStation1, setDeltaStation1] = useState<string | null>(null);
+  const [deltaStation2, setDeltaStation2] = useState<string | null>(null);
+
+  useEffect(() => {
+    const shown = selectedStations.filter((s) => s.shown);
+    if (shown.length >= 2) {
+      setDeltaStation1((prev) => prev ?? shown[0]!.station.NumPost);
+      setDeltaStation2((prev) => prev ?? shown[1]!.station.NumPost);
+    }
+  }, [selectedStations]);
 
   useEffect(() => {
     (async () => {
@@ -167,6 +194,42 @@ export default function GraphView() {
     return result;
   };
 
+  const getGroupedChartData = () => {
+    const timeline = getGlobalTimeline();
+    const shownStations = selectedStations.filter((s) => s.shown);
+
+    const stationMaps = new Map<string, Map<string, number>>();
+    for (const s of shownStations) {
+      const numPost = s.station.NumPost;
+      const dataMap = new Map<string, number>();
+      if (viewMode === "day") {
+        for (const record of rainByStation.get(numPost) ?? []) {
+          const d = new Date(record.Date);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          dataMap.set(key, record.Rain);
+        }
+      } else if (viewMode === "month") {
+        for (const entry of rainByMonthByStation.get(numPost) ?? []) {
+          const key = `${entry.date.getFullYear()}-${String(entry.date.getMonth() + 1).padStart(2, "0")}`;
+          dataMap.set(key, entry.rain);
+        }
+      } else {
+        for (const entry of rainByYearByStation.get(numPost) ?? []) {
+          dataMap.set(String(entry.date.getFullYear()), entry.rain);
+        }
+      }
+      stationMaps.set(numPost, dataMap);
+    }
+
+    return timeline.map(({ key, label }) => {
+      const entry: Record<string, string | number> = { label };
+      for (const s of shownStations) {
+        entry[s.station.NumPost] = stationMaps.get(s.station.NumPost)?.get(key) ?? 0;
+      }
+      return entry;
+    });
+  };
+
   const getChartData = (numPost: string) => {
     const timeline = getGlobalTimeline();
 
@@ -205,6 +268,57 @@ export default function GraphView() {
     }));
   };
 
+  const buildRainMap = (numPost: string): Map<string, number> => {
+    const map = new Map<string, number>();
+    if (viewMode === "day") {
+      for (const r of rainByStation.get(numPost) ?? []) {
+        const d = new Date(r.Date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        map.set(key, r.Rain);
+      }
+    } else if (viewMode === "month") {
+      for (const e of rainByMonthByStation.get(numPost) ?? []) {
+        const key = `${e.date.getFullYear()}-${String(e.date.getMonth() + 1).padStart(2, "0")}`;
+        map.set(key, e.rain);
+      }
+    } else {
+      for (const e of rainByYearByStation.get(numPost) ?? []) {
+        map.set(String(e.date.getFullYear()), e.rain);
+      }
+    }
+    return map;
+  };
+
+  const getDeltaChartData = () => {
+    if (!deltaStation1 || !deltaStation2) return [];
+    const timeline = getGlobalTimeline();
+    const map1 = buildRainMap(deltaStation1);
+    const map2 = buildRainMap(deltaStation2);
+    return timeline.map(({ key, label }) => ({
+      label,
+      delta: (map1.get(key) ?? 0) - (map2.get(key) ?? 0),
+    }));
+  };
+
+  const shownStations = selectedStations.filter((s) => s.shown);
+  const station1Name = shownStations.find((s) => s.station.NumPost === deltaStation1)?.station.CommonName ?? "";
+  const station2Name = shownStations.find((s) => s.station.NumPost === deltaStation2)?.station.CommonName ?? "";
+
+  const deltaData = getDeltaChartData();
+
+  const getStationStats = (numPost: string) => {
+    const years = rainByYearByStation.get(numPost) ?? [];
+    if (years.length === 0) return null;
+    const values = years.map((y) => y.rain);
+    const sorted = [...values].sort((a, b) => a - b);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const median =
+      sorted.length % 2 === 0
+        ? (sorted[sorted.length / 2 - 1]! + sorted[sorted.length / 2]!) / 2
+        : sorted[Math.floor(sorted.length / 2)]!;
+    return { mean, median, min: sorted[0]!, max: sorted[sorted.length - 1]! };
+  };
+
   return (
     <ScrollArea className="h-full">
       <div>
@@ -216,17 +330,18 @@ export default function GraphView() {
         </div>
         <div className="mt-20">
           <div>
-            {selectedStations.map((selectedStation) => (
+            {selectedStations.map((selectedStation, i) => (
               <StationBadge
                 label={selectedStation.station.CommonName}
                 key={selectedStation.station.NumPost}
                 shown={selectedStation.shown}
+                color={grouped ? CHART_COLORS[i % CHART_COLORS.length] : undefined}
                 toggleShow={handleShownChanged(selectedStation)}
                 removeFromSelection={handleRemoveClicked(selectedStation)}
               />
             ))}
           </div>
-          <div className="flex justify-center my-4">
+          <div className="flex justify-center items-center gap-3 my-4">
             <ButtonGroup>
               <Button
                 variant={viewMode === "day" ? "default" : "outline"}
@@ -250,18 +365,89 @@ export default function GraphView() {
                 Année
               </Button>
             </ButtonGroup>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setGrouped((g) => !g)}
+            >
+              {grouped ? "Dégrouper" : "Grouper"}
+            </Button>
           </div>
           <div className="flex flex-col gap-8 p-4">
-            {selectedStations
+            {grouped ? (() => {
+              const shownStations = selectedStations.filter((s) => s.shown);
+              const chartConfig = Object.fromEntries(
+                shownStations.map((s, i) => [
+                  s.station.NumPost,
+                  { label: s.station.CommonName, color: CHART_COLORS[i % CHART_COLORS.length] },
+                ]),
+              );
+              const chartData = getGroupedChartData();
+              return (
+                <ChartContainer config={chartConfig} className="h-64 w-full">
+                  <BarChart data={chartData} syncId="rainBarchart">
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      label={{
+                        value: "mm",
+                        position: "insideTopLeft",
+                        offset: -5,
+                        fontSize: 12,
+                      }}
+                    />
+                    {shownStations.map((s, i) => (
+                      <Bar
+                        key={s.station.NumPost}
+                        dataKey={s.station.NumPost}
+                        fill={CHART_COLORS[i % CHART_COLORS.length]}
+                        activeBar={{ fillOpacity: 0.6 }}
+                      />
+                    ))}
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent />}
+                    />
+                    <Brush
+                      dataKey="label"
+                      height={24}
+                      stroke="var(--border)"
+                      fill="var(--background)"
+                    />
+                  </BarChart>
+                </ChartContainer>
+              );
+            })() : selectedStations
               .filter((s) => s.shown)
               .map((selectedStation) => {
                 const numPost = selectedStation.station.NumPost;
                 const chartData = getChartData(numPost);
                 return (
                   <div key={numPost}>
-                    <h2 className="text-sm font-semibold mb-2">
-                      {selectedStation.station.CommonName}
-                    </h2>
+                    <div className="flex items-baseline gap-3 mb-2">
+                      <h2 className="text-sm font-semibold">
+                        {selectedStation.station.CommonName}
+                      </h2>
+                      {(() => {
+                        const stats = getStationStats(numPost);
+                        if (!stats) return null;
+                        return (
+                          <span className="text-xs text-muted-foreground">
+                            moy. {stats.mean.toFixed(0)} mm · méd.{" "}
+                            {stats.median.toFixed(0)} mm · min{" "}
+                            {stats.min.toFixed(0)} mm · max{" "}
+                            {stats.max.toFixed(0)} mm
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <ChartContainer config={{}} className="h-64 w-full">
                       <BarChart data={chartData} syncId={"rainBarchart"}>
                         <CartesianGrid vertical={false} />
@@ -305,6 +491,78 @@ export default function GraphView() {
                 );
               })}
           </div>
+          {shownStations.length >= 2 && (
+            <div className="p-4 border-t mt-4">
+              <h2 className="text-sm font-semibold mb-3">Comparaison</h2>
+              <div className="flex items-center gap-2 mb-4 text-sm">
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-3 text-sm"
+                  value={deltaStation1 ?? ""}
+                  onChange={(e) => setDeltaStation1(e.target.value || null)}
+                >
+                  {shownStations.map((s) => (
+                    <option key={s.station.NumPost} value={s.station.NumPost}>
+                      {s.station.CommonName}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-muted-foreground">−</span>
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-3 text-sm"
+                  value={deltaStation2 ?? ""}
+                  onChange={(e) => setDeltaStation2(e.target.value || null)}
+                >
+                  {shownStations.map((s) => (
+                    <option key={s.station.NumPost} value={s.station.NumPost}>
+                      {s.station.CommonName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {deltaStation1 && deltaStation2 && (
+                <ChartContainer config={{}} className="h-64 w-full">
+                  <BarChart data={deltaData} syncId="rainBarchart">
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      label={{
+                        value: "mm",
+                        position: "insideTopLeft",
+                        offset: -5,
+                        fontSize: 12,
+                      }}
+                    />
+                    <ReferenceLine y={0} stroke="var(--border)" />
+                    <Bar dataKey="delta" fill="var(--chart-1)" />
+                    <ChartTooltip
+                      cursor={false}
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value) => [
+                            `${Number(value).toFixed(1)} mm`,
+                            `${station1Name} − ${station2Name}`,
+                          ]}
+                        />
+                      }
+                    />
+                    <Brush
+                      dataKey="label"
+                      height={24}
+                      stroke="var(--border)"
+                      fill="var(--background)"
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </ScrollArea>

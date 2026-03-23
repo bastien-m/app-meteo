@@ -4,18 +4,26 @@ import { Badge } from "../ui/badge";
 type StationBadgeProps = {
   label: string;
   shown?: boolean;
+  color?: string;
   toggleShow?: () => void;
   removeFromSelection?: () => void;
 };
 export function StationBadge({
   label,
   shown = true,
+  color,
   toggleShow = () => {},
   removeFromSelection = () => {},
 }: StationBadgeProps) {
   return (
     <Badge variant="outline">
       <div className="flex items-center gap-1">
+        {color && (
+          <span
+            className="inline-block size-2 rounded-full shrink-0"
+            style={{ backgroundColor: color }}
+          />
+        )}
         <div className="hover:cursor-pointer" onClick={toggleShow}>
           {shown ? <Eye size="1em" /> : <EyeOff size="1em" />}
         </div>
