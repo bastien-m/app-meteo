@@ -1,11 +1,4 @@
-import {
-  ChartArea,
-  ChevronRight,
-  Home,
-  Map,
-  Settings,
-  Terminal,
-} from "lucide-react";
+import { ChartArea, ChevronRight, Home, Map, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import weatherIcon from "./assets/images/weather-icon.png";
 import {
@@ -144,7 +137,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
             </Collapsible>
           </SidebarMenu>
-          <SidebarMenu>
+          {/* <SidebarMenu>
             <Collapsible asChild defaultOpen className="group/collapsible">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
@@ -172,7 +165,7 @@ export function AppSidebar() {
                 </CollapsibleContent>
               </SidebarMenuItem>
             </Collapsible>
-          </SidebarMenu>
+          </SidebarMenu> */}
         </SidebarGroup>
       </SidebarContent>
 

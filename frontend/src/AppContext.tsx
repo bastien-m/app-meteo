@@ -6,6 +6,8 @@ type AppContext = {
   selectedStations: data.StationInfo[];
   addSelectedStation: (station: data.StationInfo) => void;
   removeSelectedStation: (numPost: string) => void;
+  selectedStationDetails: data.StationInfo | undefined;
+  setSelectedStationsDetails: (station?: data.StationInfo) => void;
 };
 
 const AppContext = createContext<AppContext | null>(null);
@@ -14,6 +16,9 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
   const [selectedStations, setSelectedStations] = useState<data.StationInfo[]>(
     [],
   );
+
+  const [selectedStationDetails, setSelectedStationsDetails] =
+    useState<data.StationInfo>();
 
   function addSelectedStation(station: data.StationInfo) {
     setSelectedStations(
@@ -31,7 +36,13 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext
-      value={{ selectedStations, addSelectedStation, removeSelectedStation }}
+      value={{
+        selectedStations,
+        addSelectedStation,
+        removeSelectedStation,
+        selectedStationDetails,
+        setSelectedStationsDetails,
+      }}
     >
       {children}
     </AppContext>

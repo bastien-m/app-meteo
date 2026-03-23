@@ -14,6 +14,7 @@ import {
 } from "../components/ui/chart";
 import { useAppContext } from "../AppContext";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { SearchStationComponent } from "../components/features/SearchStation";
 import { data } from "wailsjs/go/models";
 import { GetStationRainData, GetStations } from "wailsjs/go/main/App";
@@ -21,6 +22,7 @@ import { StationBadge } from "../components/features/StationBadge";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Button } from "../components/ui/button";
 import { ButtonGroup } from "../components/ui/button-group";
+import { ExternalLink } from "lucide-react";
 
 type SelectedStation = {
   shown: boolean;
@@ -47,7 +49,9 @@ export default function GraphComparisonView() {
     selectedStations: selectedStationsPostNum,
     addSelectedStation,
     removeSelectedStation,
+    setSelectedStationsDetails,
   } = useAppContext();
+  const navigate = useNavigate();
   const [stations, setStations] = useState<data.StationInfo[]>([]);
 
   const [selectedStations, setSelectedStations] = useState<SelectedStation[]>(
@@ -324,6 +328,11 @@ export default function GraphComparisonView() {
     return { mean, median, min: sorted[0]!, max: sorted[sorted.length - 1]! };
   };
 
+  const openStationDetailsView = (station: data.StationInfo) => () => {
+    setSelectedStationsDetails(station);
+    navigate("/graphs/station");
+  };
+
   return (
     <ScrollArea className="h-full">
       <div>
@@ -447,8 +456,14 @@ export default function GraphComparisonView() {
                     return (
                       <div key={numPost}>
                         <div className="flex items-baseline gap-3 mb-2">
-                          <h2 className="text-sm font-semibold">
-                            {selectedStation.station.CommonName}
+                          <h2 className="text-sm font-semibold flex justify-baseline">
+                            <div>{selectedStation.station.CommonName}</div>
+                            <ExternalLink
+                              className="h-3 cursor-pointer"
+                              onClick={openStationDetailsView(
+                                selectedStation.station,
+                              )}
+                            />
                           </h2>
                           {(() => {
                             const stats = getStationStats(numPost);
