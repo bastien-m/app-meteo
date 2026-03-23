@@ -7,7 +7,8 @@ import AppView from "./App";
 import MapView from "./Map";
 import SettingsView from "./Settings";
 import { Toaster } from "./components/ui/sonner";
-import GraphView from "./Graph";
+import GraphComparisonView from "./Graphes/Comparison";
+import GraphStationView from "./Graphes/StationDetails";
 
 const container = document.getElementById("root");
 
@@ -20,7 +21,8 @@ root.render(
         <Routes>
           <Route path="/" element={<AppView />} />
           <Route path="/map" element={<MapView />} />
-          <Route path="/graphs" element={<GraphView />} />
+          <Route path="/graphs/comparison" element={<GraphComparisonView />} />
+          <Route path="/graphs/station" element={<GraphStationView />} />
           <Route path="/settings" element={<SettingsView />} />
         </Routes>
         <Toaster />

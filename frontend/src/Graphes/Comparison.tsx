@@ -11,16 +11,16 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "./components/ui/chart";
-import { useAppContext } from "./AppContext";
+} from "../components/ui/chart";
+import { useAppContext } from "../AppContext";
 import { useEffect, useState } from "react";
-import { SearchStationComponent } from "./components/features/SearchStation";
+import { SearchStationComponent } from "../components/features/SearchStation";
 import { data } from "wailsjs/go/models";
 import { GetStationRainData, GetStations } from "wailsjs/go/main/App";
-import { StationBadge } from "./components/features/StationBadge";
-import { ScrollArea } from "./components/ui/scroll-area";
-import { Button } from "./components/ui/button";
-import { ButtonGroup } from "./components/ui/button-group";
+import { StationBadge } from "../components/features/StationBadge";
+import { ScrollArea } from "../components/ui/scroll-area";
+import { Button } from "../components/ui/button";
+import { ButtonGroup } from "../components/ui/button-group";
 
 type SelectedStation = {
   shown: boolean;
@@ -42,7 +42,7 @@ const CHART_COLORS = [
   "var(--chart-5)",
 ];
 
-export default function GraphView() {
+export default function GraphComparisonView() {
   const {
     selectedStations: selectedStationsPostNum,
     addSelectedStation,
@@ -224,7 +224,8 @@ export default function GraphView() {
     return timeline.map(({ key, label }) => {
       const entry: Record<string, string | number> = { label };
       for (const s of shownStations) {
-        entry[s.station.NumPost] = stationMaps.get(s.station.NumPost)?.get(key) ?? 0;
+        entry[s.station.NumPost] =
+          stationMaps.get(s.station.NumPost)?.get(key) ?? 0;
       }
       return entry;
     });
@@ -301,8 +302,12 @@ export default function GraphView() {
   };
 
   const shownStations = selectedStations.filter((s) => s.shown);
-  const station1Name = shownStations.find((s) => s.station.NumPost === deltaStation1)?.station.CommonName ?? "";
-  const station2Name = shownStations.find((s) => s.station.NumPost === deltaStation2)?.station.CommonName ?? "";
+  const station1Name =
+    shownStations.find((s) => s.station.NumPost === deltaStation1)?.station
+      .CommonName ?? "";
+  const station2Name =
+    shownStations.find((s) => s.station.NumPost === deltaStation2)?.station
+      .CommonName ?? "";
 
   const deltaData = getDeltaChartData();
 
@@ -335,7 +340,9 @@ export default function GraphView() {
                 label={selectedStation.station.CommonName}
                 key={selectedStation.station.NumPost}
                 shown={selectedStation.shown}
-                color={grouped ? CHART_COLORS[i % CHART_COLORS.length] : undefined}
+                color={
+                  grouped ? CHART_COLORS[i % CHART_COLORS.length] : undefined
+                }
                 toggleShow={handleShownChanged(selectedStation)}
                 removeFromSelection={handleRemoveClicked(selectedStation)}
               />
@@ -374,82 +381,25 @@ export default function GraphView() {
             </Button>
           </div>
           <div className="flex flex-col gap-8 p-4">
-            {grouped ? (() => {
-              const shownStations = selectedStations.filter((s) => s.shown);
-              const chartConfig = Object.fromEntries(
-                shownStations.map((s, i) => [
-                  s.station.NumPost,
-                  { label: s.station.CommonName, color: CHART_COLORS[i % CHART_COLORS.length] },
-                ]),
-              );
-              const chartData = getGroupedChartData();
-              return (
-                <ChartContainer config={chartConfig} className="h-64 w-full">
-                  <BarChart data={chartData} syncId="rainBarchart">
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      label={{
-                        value: "mm",
-                        position: "insideTopLeft",
-                        offset: -5,
-                        fontSize: 12,
-                      }}
-                    />
-                    {shownStations.map((s, i) => (
-                      <Bar
-                        key={s.station.NumPost}
-                        dataKey={s.station.NumPost}
-                        fill={CHART_COLORS[i % CHART_COLORS.length]}
-                        activeBar={{ fillOpacity: 0.6 }}
-                      />
-                    ))}
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent />}
-                    />
-                    <Brush
-                      dataKey="label"
-                      height={24}
-                      stroke="var(--border)"
-                      fill="var(--background)"
-                    />
-                  </BarChart>
-                </ChartContainer>
-              );
-            })() : selectedStations
-              .filter((s) => s.shown)
-              .map((selectedStation) => {
-                const numPost = selectedStation.station.NumPost;
-                const chartData = getChartData(numPost);
-                return (
-                  <div key={numPost}>
-                    <div className="flex items-baseline gap-3 mb-2">
-                      <h2 className="text-sm font-semibold">
-                        {selectedStation.station.CommonName}
-                      </h2>
-                      {(() => {
-                        const stats = getStationStats(numPost);
-                        if (!stats) return null;
-                        return (
-                          <span className="text-xs text-muted-foreground">
-                            moy. {stats.mean.toFixed(0)} mm · méd.{" "}
-                            {stats.median.toFixed(0)} mm · min{" "}
-                            {stats.min.toFixed(0)} mm · max{" "}
-                            {stats.max.toFixed(0)} mm
-                          </span>
-                        );
-                      })()}
-                    </div>
-                    <ChartContainer config={{}} className="h-64 w-full">
-                      <BarChart data={chartData} syncId={"rainBarchart"}>
+            {grouped
+              ? (() => {
+                  const shownStations = selectedStations.filter((s) => s.shown);
+                  const chartConfig = Object.fromEntries(
+                    shownStations.map((s, i) => [
+                      s.station.NumPost,
+                      {
+                        label: s.station.CommonName,
+                        color: CHART_COLORS[i % CHART_COLORS.length],
+                      },
+                    ]),
+                  );
+                  const chartData = getGroupedChartData();
+                  return (
+                    <ChartContainer
+                      config={chartConfig}
+                      className="h-64 w-full"
+                    >
+                      <BarChart data={chartData} syncId="rainBarchart">
                         <CartesianGrid vertical={false} />
                         <XAxis
                           dataKey="label"
@@ -467,14 +417,14 @@ export default function GraphView() {
                             fontSize: 12,
                           }}
                         />
-                        <Bar
-                          dataKey="rain"
-                          fill="var(--color-primary)"
-                          activeBar={{
-                            fill: "var(--color-primary)",
-                            fillOpacity: 0.6,
-                          }}
-                        />
+                        {shownStations.map((s, i) => (
+                          <Bar
+                            key={s.station.NumPost}
+                            dataKey={s.station.NumPost}
+                            fill={CHART_COLORS[i % CHART_COLORS.length]}
+                            activeBar={{ fillOpacity: 0.6 }}
+                          />
+                        ))}
                         <ChartTooltip
                           cursor={false}
                           content={<ChartTooltipContent />}
@@ -487,9 +437,74 @@ export default function GraphView() {
                         />
                       </BarChart>
                     </ChartContainer>
-                  </div>
-                );
-              })}
+                  );
+                })()
+              : selectedStations
+                  .filter((s) => s.shown)
+                  .map((selectedStation) => {
+                    const numPost = selectedStation.station.NumPost;
+                    const chartData = getChartData(numPost);
+                    return (
+                      <div key={numPost}>
+                        <div className="flex items-baseline gap-3 mb-2">
+                          <h2 className="text-sm font-semibold">
+                            {selectedStation.station.CommonName}
+                          </h2>
+                          {(() => {
+                            const stats = getStationStats(numPost);
+                            if (!stats) return null;
+                            return (
+                              <span className="text-xs text-muted-foreground">
+                                moy. {stats.mean.toFixed(0)} mm · méd.{" "}
+                                {stats.median.toFixed(0)} mm · min{" "}
+                                {stats.min.toFixed(0)} mm · max{" "}
+                                {stats.max.toFixed(0)} mm
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        <ChartContainer config={{}} className="h-64 w-full">
+                          <BarChart data={chartData} syncId={"rainBarchart"}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                              dataKey="label"
+                              tickLine={false}
+                              tickMargin={10}
+                              axisLine={false}
+                            />
+                            <YAxis
+                              tickLine={false}
+                              axisLine={false}
+                              label={{
+                                value: "mm",
+                                position: "insideTopLeft",
+                                offset: -5,
+                                fontSize: 12,
+                              }}
+                            />
+                            <Bar
+                              dataKey="rain"
+                              fill="var(--color-primary)"
+                              activeBar={{
+                                fill: "var(--color-primary)",
+                                fillOpacity: 0.6,
+                              }}
+                            />
+                            <ChartTooltip
+                              cursor={false}
+                              content={<ChartTooltipContent />}
+                            />
+                            <Brush
+                              dataKey="label"
+                              height={24}
+                              stroke="var(--border)"
+                              fill="var(--background)"
+                            />
+                          </BarChart>
+                        </ChartContainer>
+                      </div>
+                    );
+                  })}
           </div>
           {shownStations.length >= 2 && (
             <div className="p-4 border-t mt-4">

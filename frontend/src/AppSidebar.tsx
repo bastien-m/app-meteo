@@ -1,4 +1,11 @@
-import { ChartArea, Home, Map, Settings } from "lucide-react";
+import {
+  ChartArea,
+  ChevronRight,
+  Home,
+  Map,
+  Settings,
+  Terminal,
+} from "lucide-react";
 import { NavLink } from "react-router-dom";
 import weatherIcon from "./assets/images/weather-icon.png";
 import {
@@ -10,8 +17,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "./components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./components/ui/collapsible";
 
 export function AppSidebar() {
   const { toggleSidebar } = useSidebar();
@@ -101,16 +116,35 @@ export function AppSidebar() {
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Graphes">
-                <NavLink to="/graphs">
-                  <ChartArea />
-                  <span>Graphiques</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
-          {/* <SidebarMenu>
+          <SidebarMenu>
+            <Collapsible asChild defaultOpen className="group/collapsible">
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton tooltip="Graphes">
+                    <ChartArea />
+                    <span>Graphiques</span>
+                    <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <NavLink to="/graphs/station">
+                        <SidebarMenuSubButton>Station</SidebarMenuSubButton>
+                      </NavLink>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <NavLink to="/graphs/comparison">
+                        <SidebarMenuSubButton>Comparaison</SidebarMenuSubButton>
+                      </NavLink>
+                    </SidebarMenuSubItem>
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          </SidebarMenu>
+          <SidebarMenu>
             <Collapsible asChild defaultOpen className="group/collapsible">
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
@@ -138,7 +172,7 @@ export function AppSidebar() {
                 </CollapsibleContent>
               </SidebarMenuItem>
             </Collapsible>
-          </SidebarMenu> */}
+          </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
 
