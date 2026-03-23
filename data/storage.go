@@ -87,10 +87,9 @@ func LoadDepartment(ctx context.Context, db *sql.DB, dpt string) ([]LoadedDpt, e
 
 func GetStationRainData(db *sql.DB, numPost string) ([]RainData, error) {
 	stmt, err := db.Prepare(`
-		SELECT NUM_POSTE, substr(CAST(AAAAMMJJ AS VARCHAR), 1, 4) as YEAR, CAST(RR AS DOUBLE) as RAIN
+		SELECT NUM_POSTE, AAAAMMJJ as DATE, CAST(RR AS DOUBLE) as RAIN
 		FROM read_parquet('data/parquet/*.parquet')
 		WHERE CAST(NUM_POSTE AS VARCHAR) = ?
-		GROUP BY NUM_POSTE, YEAR
 	`)
 
 	if err != nil {
@@ -108,20 +107,17 @@ func GetStationRainData(db *sql.DB, numPost string) ([]RainData, error) {
 	response := make([]RainData, 0, 1000)
 
 	var (
-		numPoste, year string
-		rain           float64
+		numPoste string
+		date     time.Time
+		rain     float64
 	)
 
 	for {
 		if rows.Next() {
-			rows.Scan(&numPoste, &year, &rain)
-			t, err := time.Parse("20060102", year)
-			if err != nil {
-				continue
-			}
+			rows.Scan(&numPoste, &date, &rain)
 			response = append(response, RainData{
 				NumPost: numPoste,
-				Date:    time.Date(t.Year(), t.Month(), t.Day(), 12, 0, 0, 0, t.Location()),
+				Date:    date,
 				Rain:    rain,
 			})
 		} else {
