@@ -7,6 +7,7 @@ import {
   MapLayers,
   MapLayersControl,
   MapMarker,
+  MapMarkerClusterGroup,
   MapPopup,
   MapTileLayer,
   MapZoomControl,
@@ -69,22 +70,30 @@ function MapView() {
           <MapLayersControl />
           <MapTileLayer />
           <MapLayerGroup key="station" name="Station">
-            {stations.map((station) => (
-              <MapMarker
-                key={station.NumPost}
-                ref={(marker) => {
-                  if (marker) markerRefs.current[station.NumPost] = marker;
-                  else delete markerRefs.current[station.NumPost];
-                }}
-                position={[station.Lat, station.Lon] satisfies LatLngExpression}
-                icon={<MapPin />}
-                eventHandlers={{ click: () => setSelected(station) }}
-              >
-                <MapPopup className="w-80">
-                  <StationTooltip station={station} />
-                </MapPopup>
-              </MapMarker>
-            ))}
+            <MapMarkerClusterGroup
+              icon={(count) => (
+                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-md">
+                  {count}
+                </div>
+              )}
+            >
+              {stations.map((station) => (
+                <MapMarker
+                  key={station.NumPost}
+                  ref={(marker) => {
+                    if (marker) markerRefs.current[station.NumPost] = marker;
+                    else delete markerRefs.current[station.NumPost];
+                  }}
+                  position={[station.Lat, station.Lon] satisfies LatLngExpression}
+                  icon={<MapPin />}
+                  eventHandlers={{ click: () => setSelected(station) }}
+                >
+                  <MapPopup className="w-80">
+                    <StationTooltip station={station} />
+                  </MapPopup>
+                </MapMarker>
+              ))}
+            </MapMarkerClusterGroup>
           </MapLayerGroup>
           <MapZoomControl position="top-10 right-1" />
         </MapLayers>
