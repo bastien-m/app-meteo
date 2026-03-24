@@ -12,14 +12,6 @@ import {
   MapZoomControl,
 } from "./components/ui/map";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "./components/ui/command";
-import {
   ArrowDown,
   ArrowUp,
   MapPin,
@@ -43,6 +35,7 @@ import { ButtonGroup } from "./components/ui/button-group";
 import { Button } from "./components/ui/button";
 import { useAppContext } from "./AppContext";
 import { SearchStationComponent } from "./components/features/SearchStation";
+import { useNavigate } from "react-router-dom";
 
 const FRANCE_CENTER = [46.2276, 2.2137] satisfies LatLngExpression;
 
@@ -118,10 +111,15 @@ type YearRain = {
 };
 
 function StationTooltip({ station }: { station: data.StationInfo }) {
-  const { selectedStations, addSelectedStation, removeSelectedStation } =
-    useAppContext();
+  const {
+    selectedStations,
+    addSelectedStation,
+    removeSelectedStation,
+    setSelectedStationsDetails,
+  } = useAppContext();
   const [maxRain, setMaxRain] = useState<YearRain | undefined>(undefined);
   const [minRain, setMinRain] = useState<YearRain | undefined>(undefined);
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -170,6 +168,12 @@ function StationTooltip({ station }: { station: data.StationInfo }) {
       setMaxRain(maxRain);
     })();
   }, []);
+
+  const navigateToStationDetails = (station: data.StationInfo) => () => {
+    setSelectedStationsDetails(station);
+    navigate("/graphs/station");
+  };
+
   return (
     <div className="flex flex-col gap-1">
       <p className="text-sm font-semibold px-4 pt-2">{station.CommonName}</p>
@@ -217,7 +221,7 @@ function StationTooltip({ station }: { station: data.StationInfo }) {
             Ajouter aux graphes
           </Button>
         )}
-        <Button variant="outline">
+        <Button variant="outline" onClick={navigateToStationDetails(station)}>
           <SquareActivity />
           Afficher
         </Button>
