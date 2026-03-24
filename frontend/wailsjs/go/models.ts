@@ -71,6 +71,26 @@ export namespace data {
 		    return a;
 		}
 	}
+	export class StationAvgRain {
+	    NumPost: string;
+	    CommonName: string;
+	    Lat: number;
+	    Lon: number;
+	    AvgRain: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new StationAvgRain(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.NumPost = source["NumPost"];
+	        this.CommonName = source["CommonName"];
+	        this.Lat = source["Lat"];
+	        this.Lon = source["Lon"];
+	        this.AvgRain = source["AvgRain"];
+	    }
+	}
 	export class StationInfo {
 	    NumPost: string;
 	    CommonName: string;

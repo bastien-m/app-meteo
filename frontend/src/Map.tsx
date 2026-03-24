@@ -1,4 +1,9 @@
-import { LatLngExpression, Marker } from "leaflet";
+import {
+  LatLngBoundsExpression,
+  LatLngExpression,
+  Marker,
+  Rectangle,
+} from "leaflet";
 import { useEffect, useRef, useState } from "react";
 import { useMap } from "react-leaflet";
 import {
@@ -9,7 +14,9 @@ import {
   MapMarker,
   MapMarkerClusterGroup,
   MapPopup,
+  MapRectangle,
   MapTileLayer,
+  MapTooltip,
   MapZoomControl,
 } from "./components/ui/map";
 import {
@@ -20,7 +27,11 @@ import {
   PinOff,
   SquareActivity,
 } from "lucide-react";
-import { GetStationRain, GetStations } from "wailsjs/go/main/App";
+import {
+  GetAvgRainAllStations,
+  GetStationRain,
+  GetStations,
+} from "wailsjs/go/main/App";
 import { data } from "wailsjs/go/models";
 import { LogPrint } from "wailsjs/runtime/runtime";
 import {
@@ -40,19 +51,73 @@ import { useNavigate } from "react-router-dom";
 
 const FRANCE_CENTER = [46.2276, 2.2137] satisfies LatLngExpression;
 
+function RainRectangle({
+  bounds,
+  color,
+  children,
+}: {
+  bounds: LatLngBoundsExpression;
+  color: string;
+  children?: React.ReactNode;
+}) {
+  const [rect, setRect] = useState<Rectangle | null>(null);
+
+  useEffect(() => {
+    const el = rect?.getElement() as SVGElement | undefined;
+    if (el) {
+      el.style.fill = color;
+      el.style.stroke = "none";
+      el.style.fillOpacity = "0.65";
+    }
+  }, [rect, color]);
+
+  return (
+    <MapRectangle ref={setRect} bounds={bounds} pathOptions={{ weight: 0 }}>
+      {children}
+    </MapRectangle>
+  );
+}
+
+function rainColor(value: number, min: number, max: number): string {
+  const t = max === min ? 0.5 : (value - min) / (max - min);
+  // Multi-stop gradient: dark red → yellow → forest green → dark blue
+  const stops: [number, number, number, number][] = [
+    [0, 139, 0, 0], // dark red   (min, driest)
+    [0.35, 220, 180, 0], // yellow     (below average)
+    [0.6, 34, 139, 34], // forest green (average)
+    [1, 0, 0, 139], // dark blue  (max, wettest)
+  ];
+  let i = 0;
+  while (i < stops.length - 2 && t > stops[i + 1][0]) i++;
+  const [t0, r0, g0, b0] = stops[i];
+  const [t1, r1, g1, b1] = stops[i + 1];
+  const u = (t - t0) / (t1 - t0);
+  return `rgb(${Math.round(r0 + u * (r1 - r0))},${Math.round(g0 + u * (g1 - g0))},${Math.round(b0 + u * (b1 - b0))})`;
+}
+
 function MapView() {
   const [selected, setSelected] = useState<data.StationInfo | null>(null);
 
   const [stations, setStations] = useState<data.StationInfo[]>([]);
+  const [avgRainStations, setAvgRainStations] = useState<data.StationAvgRain[]>(
+    [],
+  );
   const markerRefs = useRef<Record<string, Marker>>({});
 
   useEffect(() => {
     (async () => {
-      const stationList = await GetStations();
+      const [stationList, avgRainList] = await Promise.all([
+        GetStations(),
+        GetAvgRainAllStations(),
+      ]);
       LogPrint(`loaded station with ${stationList.length} stations`);
       setStations(stationList);
+      setAvgRainStations(avgRainList);
     })();
   }, []);
+
+  const rainMin = Math.min(...avgRainStations.map((s) => s.AvgRain));
+  const rainMax = Math.max(...avgRainStations.map((s) => s.AvgRain));
 
   useEffect(() => {
     if (selected) {
@@ -69,6 +134,24 @@ function MapView() {
         <MapLayers defaultLayerGroups={["Station"]}>
           <MapLayersControl />
           <MapTileLayer />
+          <MapLayerGroup key="rain" name="Pluie moyenne">
+            {avgRainStations.map((s) => (
+              <RainRectangle
+                key={s.NumPost}
+                bounds={[
+                  [s.Lat - 0.07, s.Lon - 0.1],
+                  [s.Lat + 0.07, s.Lon + 0.1],
+                ]}
+                color={rainColor(s.AvgRain, rainMin, rainMax)}
+              >
+                <MapTooltip>
+                  <span className="font-semibold">{s.CommonName}</span>
+                  <br />
+                  {Math.round(s.AvgRain)} mm/an (moy.)
+                </MapTooltip>
+              </RainRectangle>
+            ))}
+          </MapLayerGroup>
           <MapLayerGroup key="station" name="Station">
             <MapMarkerClusterGroup
               icon={(count) => (
@@ -84,7 +167,9 @@ function MapView() {
                     if (marker) markerRefs.current[station.NumPost] = marker;
                     else delete markerRefs.current[station.NumPost];
                   }}
-                  position={[station.Lat, station.Lon] satisfies LatLngExpression}
+                  position={
+                    [station.Lat, station.Lon] satisfies LatLngExpression
+                  }
                   icon={<MapPin />}
                   eventHandlers={{ click: () => setSelected(station) }}
                 >

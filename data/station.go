@@ -139,6 +139,55 @@ func GetStationRain(db *sql.DB, station string) []RainByStation {
 	return response
 }
 
+type StationAvgRain struct {
+	NumPost    string
+	CommonName string
+	Lat        float64
+	Lon        float64
+	AvgRain    float64
+}
+
+func GetAvgRainAllStations(db *sql.DB) ([]StationAvgRain, error) {
+	rows, err := db.Query(`
+		WITH yearly AS (
+			SELECT NUM_POSTE,
+			       substr(CAST(AAAAMMJJ AS VARCHAR), 1, 4) AS YEAR,
+			       sum(CAST(RR AS DOUBLE)) AS RAIN
+			FROM read_parquet('data/parquet/*.parquet')
+			GROUP BY NUM_POSTE, YEAR
+			HAVING count(1) > 365 * 0.95
+		),
+		station_meta AS (
+			SELECT DISTINCT NUM_POSTE, NOM_USUEL, LAT, LON
+			FROM read_parquet('data/parquet/*.parquet')
+		)
+		SELECT s.NUM_POSTE, s.NOM_USUEL, s.LAT, s.LON, avg(y.RAIN) AS AVG_RAIN
+		FROM station_meta s
+		JOIN yearly y ON s.NUM_POSTE = y.NUM_POSTE
+		GROUP BY s.NUM_POSTE, s.NOM_USUEL, s.LAT, s.LON
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	response := make([]StationAvgRain, 0, 1000)
+	var numPoste, nomUsuel string
+	var lat, lon, avgRain float64
+
+	for rows.Next() {
+		rows.Scan(&numPoste, &nomUsuel, &lat, &lon, &avgRain)
+		response = append(response, StationAvgRain{
+			NumPost:    numPoste,
+			CommonName: nomUsuel,
+			Lat:        lat,
+			Lon:        lon,
+			AvgRain:    avgRain,
+		})
+	}
+	return response, nil
+}
+
 func GetStations(db *sql.DB) ([]StationInfo, error) {
 	stmt, err := db.Prepare("SELECT DISTINCT NUM_POSTE, NOM_USUEL, LAT, LON, ALTI FROM read_parquet('data/parquet/*.parquet')")
 	if err != nil {

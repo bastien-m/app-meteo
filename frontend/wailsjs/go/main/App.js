@@ -6,6 +6,10 @@ export function DownloadDptWeatherData(arg1) {
   return window['go']['main']['App']['DownloadDptWeatherData'](arg1);
 }
 
+export function GetAvgRainAllStations() {
+  return window['go']['main']['App']['GetAvgRainAllStations']();
+}
+
 export function GetLoadedSource() {
   return window['go']['main']['App']['GetLoadedSource']();
 }

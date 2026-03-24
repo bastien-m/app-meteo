@@ -4,6 +4,8 @@ import {data} from '../models';
 
 export function DownloadDptWeatherData(arg1:string):Promise<void>;
 
+export function GetAvgRainAllStations():Promise<Array<data.StationAvgRain>>;
+
 export function GetLoadedSource():Promise<Array<data.LoadedDpt>>;
 
 export function GetStationRain(arg1:string):Promise<Array<data.RainByStation>>;
