@@ -68,7 +68,7 @@ func (a *App) GetStationRain(station string) ([]data.RainByStation, error) {
 	return data.GetRainByStation(a.db, station)
 }
 
-func (a *App) GetStationRainData(station string) ([]data.RainData, error) {
+func (a *App) GetStationRainData(station string) ([]data.WeatherData, error) {
 	return data.GetStationRainData(a.db, station)
 }
 

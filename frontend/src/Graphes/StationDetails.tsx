@@ -21,6 +21,8 @@ import {
   BarChart,
   Brush,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ReferenceLine,
   Scatter,
   ScatterChart,
@@ -66,7 +68,7 @@ function computeStats(rainData: data.RainByStation[]): Stats | null {
 }
 
 function buildChartData(
-  records: data.RainData[],
+  records: data.WeatherData[],
   viewMode: ViewMode,
 ): RainByPeriod[] {
   if (viewMode === "day") {
@@ -109,6 +111,69 @@ function buildChartData(
     .map(({ label, rain }) => ({ label, rain }));
 }
 
+import { MONTH_LABELS } from "@/lib/month";
+
+type MonthlyAvg = {
+  short: string;
+  long: string;
+  rain: number;
+  temperature: number;
+  sigma: number;
+  rainDuration: number;
+};
+
+function buildMonthlyAvgData(records: data.WeatherData[]): MonthlyAvg[] {
+  // Accumulate sums per (year, month) for rain, then per (month) for the rest
+  const rainPerYearMonth = new Map<string, number>();
+  const sums = Array.from({ length: 12 }, () => ({
+    temp: 0,
+    tempCount: 0,
+    sigma: 0,
+    sigmaCount: 0,
+    drr: 0,
+    drrCount: 0,
+  }));
+
+  for (const r of records) {
+    const d = new Date(r.Date);
+    const month = d.getMonth();
+    const yearMonthKey = `${d.getFullYear()}-${month}`;
+    rainPerYearMonth.set(
+      yearMonthKey,
+      (rainPerYearMonth.get(yearMonthKey) ?? 0) + r.Rain,
+    );
+    if (r.MeanTemperature != null) {
+      sums[month].temp += r.MeanTemperature;
+      sums[month].tempCount++;
+    }
+    if (r.Sigma != null) {
+      sums[month].sigma += r.Sigma;
+      sums[month].sigmaCount++;
+    }
+    if (r.RainDuration != null) {
+      sums[month].drr += r.RainDuration;
+      sums[month].drrCount++;
+    }
+  }
+
+  const rainSums = new Array(12).fill(0);
+  const rainCounts = new Array(12).fill(0);
+  for (const [key, rain] of rainPerYearMonth) {
+    const month = Number(key.split("-")[1]);
+    rainSums[month] += rain;
+    rainCounts[month]++;
+  }
+
+  return MONTH_LABELS.map(({ short, long }, i) => ({
+    short,
+    long,
+    rain: rainCounts[i] > 0 ? rainSums[i] / rainCounts[i] : 0,
+    temperature: sums[i].tempCount > 0 ? sums[i].temp / sums[i].tempCount : 0,
+    sigma: sums[i].sigmaCount > 0 ? sums[i].sigma / sums[i].sigmaCount : 0,
+    rainDuration: sums[i].drrCount > 0 ? sums[i].drr / sums[i].drrCount : 0,
+  }));
+}
+
 function StatCard({
   title,
   value,
@@ -136,7 +201,7 @@ export default function GraphStationView() {
     useAppContext();
   const [stations, setStations] = useState<data.StationInfo[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [rawRecords, setRawRecords] = useState<data.RainData[]>([]);
+  const [rawRecords, setRawRecords] = useState<data.WeatherData[]>([]);
   const [yearlyRecords, setYearlyRecords] = useState<data.RainByStation[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
 
@@ -268,6 +333,103 @@ export default function GraphStationView() {
                 </BarChart>
               </ChartContainer>
             </Card>
+          )}
+          {rawRecords.length > 0 && (
+            <div className="mt-8">
+              <Card className="bg-accent/10">
+                <CardHeader>
+                  <h2 className="text-sm font-semibold mb-4">
+                    Pluie moyenne par mois
+                  </h2>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={{}} className="h-64 w-full">
+                    <ComposedChart
+                      data={buildMonthlyAvgData(rawRecords)}
+                      margin={{ right: 32 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="short"
+                        tickLine={false}
+                        tickMargin={10}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        yAxisId="rain"
+                        tickLine={false}
+                        axisLine={false}
+                        label={{
+                          value: "mm",
+                          position: "insideTopLeft",
+                          offset: 0,
+                          fontSize: 12,
+                        }}
+                      />
+                      <YAxis
+                        yAxisId="temp"
+                        orientation="right"
+                        tickLine={false}
+                        axisLine={false}
+                        label={{
+                          value: "°C",
+                          position: "insideTopRight",
+                          offset: 0,
+                          fontSize: 12,
+                        }}
+                      />
+                      <YAxis yAxisId="sigma" hide />
+                      <YAxis yAxisId="drr" hide />
+                      <Bar
+                        yAxisId="rain"
+                        dataKey="rain"
+                        fill="var(--color-primary)"
+                        fillOpacity={0.4}
+                      />
+                      <Line
+                        yAxisId="temp"
+                        dataKey="temperature"
+                        stroke="var(--chart-1)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Line
+                        yAxisId="sigma"
+                        dataKey="sigma"
+                        stroke="var(--chart-2)"
+                        strokeWidth={2}
+                        dot={false}
+                        strokeDasharray="4 3"
+                      />
+                      <Line
+                        yAxisId="drr"
+                        dataKey="rainDuration"
+                        stroke="var(--chart-3)"
+                        strokeWidth={2}
+                        dot={false}
+                        strokeDasharray="2 2"
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={({ payload }) => {
+                          if (!payload?.length) return null;
+                          const d = payload[0]!.payload as MonthlyAvg;
+                          return (
+                            <div className="rounded-lg border bg-background px-3 py-2 text-sm shadow-md space-y-1">
+                              <p className="font-bold">{d.long}</p>
+                              <p>Pluie : {d.rain.toFixed(1)} mm</p>
+                              <p>Température : {d.temperature.toFixed(1)} °C</p>
+                              <p>Sigma : {d.sigma.toFixed(2)}</p>
+                              <p>Durée pluie : {d.rainDuration.toFixed(1)}</p>
+                            </div>
+                          );
+                        }}
+                      />
+                    </ComposedChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
           )}
           {yearlyRecords.length > 0 && (
             <div className="mt-8">

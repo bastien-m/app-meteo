@@ -6,38 +6,10 @@
   "loadedDpts": [
     {
       "startDate": "1950-01-01",
-      "endDate": "2024-12-31",
-      "lines": 967830,
-      "dpt": "01",
-      "filename": "data/parquet/c79aaafe-8017-4d2b-8884-57b5391da5bc.parquet"
-    },
-    {
-      "startDate": "2025-01-01",
-      "endDate": "2026-03-09",
-      "lines": 6892,
-      "dpt": "01",
-      "filename": "data/parquet/1fb641c2-fb6b-4fa1-8961-a41c349e8629.parquet"
-    },
-    {
-      "startDate": "1950-01-01",
-      "endDate": "2024-12-31",
-      "lines": 980364,
+      "endDate": "2026-03-24",
+      "lines": 988428,
       "dpt": "76",
-      "filename": "data/parquet/83047d20-9b28-4734-9aca-1a44801353ee.parquet"
-    },
-    {
-      "startDate": "1950-01-01",
-      "endDate": "2024-12-31",
-      "lines": 830985,
-      "dpt": "27",
-      "filename": "data/parquet/f4cb9bb9-bb80-41b1-b240-187889d164b8.parquet"
-    },
-    {
-      "startDate": "2025-01-01",
-      "endDate": "2026-03-22",
-      "lines": 3568,
-      "dpt": "27",
-      "filename": "data/parquet/1ecdaaae-2f18-4665-b672-c8e773772ea7.parquet"
+      "filename": "data/parquet/76.parquet"
     }
   ]
 }

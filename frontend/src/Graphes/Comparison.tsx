@@ -604,7 +604,7 @@ function useStationData(
   stations: data.StationInfo[],
 ) {
   const [rainByStation, setRainByStation] = useState<
-    Map<string, data.RainData[]>
+    Map<string, data.WeatherData[]>
   >(new Map());
   const [rainByMonthByStation, setRainByMonthByStation] = useState<
     Map<string, RainByPeriod[]>

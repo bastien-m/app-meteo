@@ -17,6 +17,10 @@ import (
 	_ "github.com/duckdb/duckdb-go/v2"
 )
 
+const (
+	datasetId = "6569b51ae64326786e4e8e1a"
+)
+
 type StationInfo struct {
 	NumPost    string
 	CommonName string
@@ -120,8 +124,8 @@ type DataGouvDataset struct {
 }
 
 func downloadDataGouvDataset(db *sql.DB, dpt string) ([]string, error) {
-	rainDatasetId := "6569b51ae64326786e4e8e1a"
-	url := fmt.Sprintf("https://www.data.gouv.fr/api/1/datasets/%s/", rainDatasetId)
+
+	url := fmt.Sprintf("https://www.data.gouv.fr/api/1/datasets/%s/", datasetId)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -142,49 +146,160 @@ func downloadDataGouvDataset(db *sql.DB, dpt string) ([]string, error) {
 		dpt = "0" + dpt
 	}
 
-	response := make([]string, 0)
-
 	lastYear := fmt.Sprintf("%d", time.Now().Year()-1)
 
-	for _, resource := range dataset.Resources {
-		if strings.Contains(resource.Description, fmt.Sprintf("département %s", dpt)) {
-			if strings.Contains(resource.Description, "RR-T-Vent") && strings.Contains(resource.Description, "1950") {
-				// historical file is provided in csv.gz. Field "latest" at root level. Description like %1950% and RR-T-Vent
-				// so we need to fetch this archive first, uncompress and transform it to parquet file
-				// we can then move to data/parquet folder
-				filename, err := downloadHistoricalFile(resource)
-				if err == nil {
-					csvPath, err := gunzipFile(filename)
+	var historicalRRTVent, historicalAutresParams *DatasetResource
+	var recentRRTVent, recentAutresParams *DatasetResource
 
-					if err == nil {
-						parquetPath, err := convertToParquetFile(db, csvPath)
+	for i, resource := range dataset.Resources {
+		if !strings.Contains(resource.Description, fmt.Sprintf("département %s", dpt)) {
+			continue
+		}
+		r := &dataset.Resources[i]
+		switch {
+		case strings.Contains(resource.Description, "RR-T-Vent") && strings.Contains(resource.Description, "1950"):
+			historicalRRTVent = r
+		case strings.Contains(resource.Description, "autres-parametres") && strings.Contains(resource.Description, "1950"):
+			historicalAutresParams = r
+		case strings.Contains(resource.Description, "RR-T-Vent") && strings.Contains(resource.Description, lastYear):
+			recentRRTVent = r
+		case strings.Contains(resource.Description, "autres-parametres") && strings.Contains(resource.Description, lastYear):
+			recentAutresParams = r
+		}
+	}
+
+	var historicalParquet, recentParquet string
+
+	// Historical: csv.gz → parquet, then enrich with SIGMA from autres-parametres csv.gz
+	if historicalRRTVent != nil {
+		filename, err := downloadHistoricalFile(*historicalRRTVent)
+		if err == nil {
+			csvPath, err := gunzipFile(filename)
+			if err == nil {
+				parquetPath, err := convertToParquetFile(db, csvPath)
+				if err == nil {
+					if historicalAutresParams != nil {
+						extraFilename, err := downloadHistoricalFile(*historicalAutresParams)
 						if err == nil {
-							response = append(response, parquetPath)
+							extraCSVPath, err := gunzipFile(extraFilename)
+							if err == nil {
+								if err := enrichParquetWithExtraObservablesFromCSV(db, parquetPath, extraCSVPath); err == nil {
+									os.Remove(extraCSVPath)
+								}
+							}
 						}
 					}
-				}
-
-			} else if strings.Contains(resource.Description, "RR-T-Vent") && strings.Contains(resource.Description, lastYear) {
-				// last year can be retrieved directly in parquet format
-				// so we just need to move it to data/parquet folder
-				parquetPropertyKey := "analysis:parsing:parquet_url"
-				filename := fmt.Sprintf("data/parquet/%s.parquet", resource.Id)
-				out, err := os.Create(filename)
-				if err == nil {
-					defer out.Close()
-					resp, err := http.Get(resource.Extras[parquetPropertyKey])
-					if err == nil {
-						defer resp.Body.Close()
-						if _, err = io.Copy(out, resp.Body); err == nil {
-							response = append(response, filename)
-						}
-					}
+					historicalParquet = parquetPath
 				}
 			}
 		}
 	}
 
+	// Recent: parquet directly, then enrich with SIGMA from autres-parametres parquet
+	if recentRRTVent != nil {
+		parquetPropertyKey := "analysis:parsing:parquet_url"
+		filename := fmt.Sprintf("data/tmp/%s.parquet", recentRRTVent.Id)
+		if err := downloadFile(recentRRTVent.Extras[parquetPropertyKey], filename); err == nil {
+			if recentAutresParams != nil {
+				extraFilename := fmt.Sprintf("data/tmp/%s.parquet", recentAutresParams.Id)
+				if err := downloadFile(recentAutresParams.Extras[parquetPropertyKey], extraFilename); err == nil {
+					if err := enrichParquetWithExtraObservablesFromParquet(db, filename, extraFilename); err == nil {
+						os.Remove(extraFilename)
+					}
+				}
+			}
+			recentParquet = filename
+		}
+	}
+
+	if historicalParquet != "" && recentParquet != "" {
+		mergedPath := fmt.Sprintf("data/parquet/%s.parquet", dpt)
+		if err := mergeParquetFiles(db, mergedPath, historicalParquet, recentParquet); err == nil {
+			os.Remove(historicalParquet)
+			os.Remove(recentParquet)
+			return []string{mergedPath}, nil
+		}
+	}
+
+	// Fallback: return whatever we have if merge failed or one file is missing
+	response := make([]string, 0, 2)
+	if historicalParquet != "" {
+		response = append(response, historicalParquet)
+	}
+	if recentParquet != "" {
+		response = append(response, recentParquet)
+	}
 	return response, nil
+}
+
+func downloadFile(url, dest string) error {
+	out, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func mergeParquetFiles(db *sql.DB, destPath, path1, path2 string) error {
+	query := fmt.Sprintf(`
+		COPY (
+			SELECT * FROM read_parquet('%s')
+			UNION ALL
+			SELECT * FROM read_parquet('%s')
+			ORDER BY NUM_POSTE, AAAAMMJJ
+		) TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)
+	`, path1, path2, destPath)
+
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("merge parquet files: %w", err)
+	}
+	return nil
+}
+
+func enrichParquetWithExtraObservablesFromCSV(db *sql.DB, parquetPath, csvPath string) error {
+	tmpPath := parquetPath + ".tmp"
+	query := fmt.Sprintf(`
+		COPY (
+			SELECT m.*, e.SIGMA, e.UM, e.DRR
+			FROM read_parquet('%s') m
+			LEFT JOIN (
+				SELECT NUM_POSTE, strptime(CAST(AAAAMMJJ AS VARCHAR), '%%Y%%m%%d')::DATE AS AAAAMMJJ, SIGMA, UM, DRR
+				FROM read_csv('%s', auto_detect=true, delim=';')
+			) e ON m.NUM_POSTE = e.NUM_POSTE AND m.AAAAMMJJ = e.AAAAMMJJ
+		) TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)
+	`, parquetPath, csvPath, tmpPath)
+
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("enrich parquet with SIGMA from CSV: %w", err)
+	}
+
+	return os.Rename(tmpPath, parquetPath)
+}
+
+func enrichParquetWithExtraObservablesFromParquet(db *sql.DB, parquetPath, extraParquetPath string) error {
+	tmpPath := parquetPath + ".tmp"
+	query := fmt.Sprintf(`
+		COPY (
+			SELECT m.*, e.SIGMA, e.UM, e.DRR
+			FROM read_parquet('%s') m
+			LEFT JOIN read_parquet('%s') e ON m.NUM_POSTE = e.NUM_POSTE AND m.AAAAMMJJ = e.AAAAMMJJ
+		) TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)
+	`, parquetPath, extraParquetPath, tmpPath)
+
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("enrich parquet with SIGMA from parquet: %w", err)
+	}
+
+	return os.Rename(tmpPath, parquetPath)
 }
 
 func downloadHistoricalFile(resource DatasetResource) (string, error) {

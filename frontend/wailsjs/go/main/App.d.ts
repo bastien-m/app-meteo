@@ -10,7 +10,7 @@ export function GetLoadedSource():Promise<Array<data.LoadedDpt>>;
 
 export function GetStationRain(arg1:string):Promise<Array<data.RainByStation>>;
 
-export function GetStationRainData(arg1:string):Promise<Array<data.RainData>>;
+export function GetStationRainData(arg1:string):Promise<Array<data.WeatherData>>;
 
 export function GetStations():Promise<Array<data.StationInfo>>;
 
