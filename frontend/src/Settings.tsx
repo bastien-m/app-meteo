@@ -13,7 +13,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
-import { Info } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrowserOpenURL, LogError } from "../wailsjs/runtime/runtime";
 import { Button } from "./components/ui/button";
@@ -28,6 +28,7 @@ import {
 } from "./settings/departments/data";
 import { DataTable } from "./settings/departments/data-table";
 import {
+  DownloadAllDepartmentsWeatherData,
   DownloadDptWeatherData,
   GetLoadedSource,
 } from "../wailsjs/go/main/App";
@@ -38,6 +39,7 @@ export default function SettingsView() {
   const [selectedDpt, setSelectedDpt] = useState<Department | undefined>();
   const [loadableDpt, setLoadableDpt] = useState<Department[]>(departments);
   const [loadedSource, setLoadedSource] = useState<data.LoadedDpt[]>([]);
+  const [isImportingAll, setIsImportingAll] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -47,7 +49,22 @@ export default function SettingsView() {
     })();
   }, []);
 
-  const handleImportAll = () => {};
+  const handleImportAll = async () => {
+    setIsImportingAll(true);
+    try {
+      await DownloadAllDepartmentsWeatherData();
+      const loadedDpt = await GetLoadedSource();
+      setLoadedSource(loadedDpt);
+      setLoadableDpt(getDptNotLoaded(loadedDpt.map((ld) => ld.dpt)));
+      toast.success("Tous les départements ont été importés");
+    } catch (err) {
+      toast.error("Une erreur est survenue lors de l'importation");
+      LogError("Error while importing all departments");
+      LogError(JSON.stringify(err));
+    } finally {
+      setIsImportingAll(false);
+    }
+  };
 
   const handleDownloadDpt = async () => {
     if (selectedDpt) {
@@ -152,7 +169,9 @@ export default function SettingsView() {
                         avec des données depuis 1950.
                       </p>
                     </div>
-                    <Button className="shrink-0">Importer tout</Button>
+                    <Button className="shrink-0" onClick={handleImportAll}>
+                      Importer tout
+                    </Button>
                   </div>
 
                   {/* Section 2 — Par département */}

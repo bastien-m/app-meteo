@@ -37,13 +37,39 @@ func (a *App) startup(ctx context.Context) {
 	a.cfg = cfg
 }
 
+func (a *App) DownloadAllDepartmentsWeatherData() error {
+	data.DownloadAllDpt(a.db)
+
+	loadedDpts := make(map[string]bool)
+	for _, ld := range a.cfg.LoadedDpts {
+		loadedDpts[ld.Dpt] = true
+	}
+
+	for _, dpt := range data.MetropolitanDpts {
+		if loadedDpts[dpt] {
+			continue
+		}
+		loadedDpt, err := data.QueryDptMetadata(a.db, dpt)
+		if err != nil {
+			return fmt.Errorf("erreur lors du chargement du département %s: %w", dpt, err)
+		}
+		if err := a.cfg.AddLoadedDpt([]data.LoadedDpt{loadedDpt}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *App) DownloadDptWeatherData(dpt string) error {
-	loadedDpt, err := data.LoadDepartment(a.ctx, a.db, dpt)
+	dptChan := make(chan string, 1)
+	data.DownloadParquetFileForDpt(dpt, dptChan, a.db)
+	completedDpt := <-dptChan
+	data.BuildParquetFile(completedDpt, a.db)
+	loadedDpt, err := data.QueryDptMetadata(a.db, completedDpt)
 	if err != nil {
 		return err
 	}
-	a.cfg.AddLoadedDpt(loadedDpt)
-	return nil
+	return a.cfg.AddLoadedDpt([]data.LoadedDpt{loadedDpt})
 }
 
 func (a *App) GetLoadedSource() ([]data.LoadedDpt, error) {
